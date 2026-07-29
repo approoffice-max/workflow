@@ -69,19 +69,19 @@ jobs:
 
       # Build Backend Docker Image
       - name: Build Backend
-        run: docker build -t username/taskflow-backend ./backend
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend ./backend
 
       # Push Backend Docker Image to Docker Hub
       - name: Push Backend Docker Image
-        run: docker push username/taskflow-backend
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend
 
       # Build Frontend Docker Image
       - name: Build Frontend
-        run: docker build -t username/taskflow-frontend ./frontend
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend ./frontend
 
       # Push Frontend Docker Image to Docker Hub
       - name: Push Frontend Docker Image
-        run: docker push username/taskflow-frontend
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend
 
       # Deploy to Production Server
       - name: Deploy to Production Server
