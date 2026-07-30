@@ -97,11 +97,12 @@ jobs:
             echo "🚀 Starting deployment..."
 
             mkdir -p ~/taskflow
-
-            # Copy docker-compose from repository to VM
-            cp docker-compose.prod.yml ~/taskflow/
-
             cd ~/taskflow
+
+            # Create the file directly (no cp needed)
+            cat > docker-compose.prod.yml << 'EOF'
+            # ... paste your docker-compose content here ...
+            EOF
 
             # Pass secrets to docker-compose via environment variables
             export DB_USER="${{ secrets.DB_USER }}"
