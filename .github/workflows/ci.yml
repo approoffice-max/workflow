@@ -97,6 +97,10 @@ jobs:
             echo "🚀 Starting deployment..."
 
             mkdir -p ~/taskflow
+
+            # Copy docker-compose from repository to VM
+            cp docker-compose.prod.yml ~/taskflow/
+
             cd ~/taskflow
 
             # Pass secrets to docker-compose via environment variables
