@@ -88,7 +88,8 @@ jobs:
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SERVER_HOST }}
-          port: 2222 # Fixed port
+          # port: 2222 # Fixed port
+          port: ${{ secrets.SERVER_PORT }}
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script_stop: true
