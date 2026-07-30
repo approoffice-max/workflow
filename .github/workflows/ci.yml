@@ -96,19 +96,13 @@ jobs:
           script: |
             echo "🚀 Starting deployment..."
 
-            # Check if taskflow directory exists, create if not
-            if [ ! -d "$HOME/taskflow" ]; then
-              echo "📁 Creating taskflow directory..."
-              mkdir -p $HOME/taskflow
-            fi
+            mkdir -p ~/taskflow
+            cd ~/taskflow
 
-            cd $HOME/taskflow
-
-            # Check if docker-compose file exists
-            if [ ! -f "docker-compose.prod.yml" ]; then
-              echo "❌ docker-compose.prod.yml not found!"
-              exit 1
-            fi
+            # Pass secrets to docker-compose via environment variables
+            export DB_USER="${{ secrets.DB_USER }}"
+            export DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
+            export DB_NAME="${{ secrets.DB_NAME }}"
 
             echo "📦 Pulling latest images..."
             docker compose -f docker-compose.prod.yml pull
@@ -117,6 +111,31 @@ jobs:
             docker compose -f docker-compose.prod.yml up -d
 
             echo "✅ Deployment complete!"
-
-            # Show running containers
             docker compose -f docker-compose.prod.yml ps
+          # script: |
+          #   echo "🚀 Starting deployment..."
+
+          #   # Check if taskflow directory exists, create if not
+          #   if [ ! -d "$HOME/taskflow" ]; then
+          #     echo "📁 Creating taskflow directory..."
+          #     mkdir -p $HOME/taskflow
+          #   fi
+
+          #   cd $HOME/taskflow
+
+          #   # Check if docker-compose file exists
+          #   if [ ! -f "docker-compose.prod.yml" ]; then
+          #     echo "❌ docker-compose.prod.yml not found!"
+          #     exit 1
+          #   fi
+
+          #   echo "📦 Pulling latest images..."
+          #   docker compose -f docker-compose.prod.yml pull
+
+          #   echo "🔄 Restarting containers..."
+          #   docker compose -f docker-compose.prod.yml up -d
+
+          #   echo "✅ Deployment complete!"
+
+          #   # Show running containers
+          #   docker compose -f docker-compose.prod.yml ps
