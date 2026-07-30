@@ -100,7 +100,7 @@ jobs:
 
             # Copy docker-compose.prod.yml from the repository root
             # The repository is at /home/runner/work/workflow/workflow
-            cp /home/runner/work/workflow/workflow/docker-compose.prod.yml ~/taskflow/
+            # cp /home/runner/work/workflow/workflow/docker-compose.prod.yml ~/taskflow/
 
             cd ~/taskflow
 

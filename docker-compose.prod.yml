@@ -1,3 +1,12 @@
+- name: Copy compose file
+  uses: appleboy/scp-action@v0.1.7
+  with:
+    host: ${{ secrets.HOST }}
+    username: ${{ secrets.USERNAME }}
+    key: ${{ secrets.SSH_KEY }}
+    source: "docker-compose.prod.yml"
+    target: "~/taskflow"
+
 version: "3.8"
 
 services:
