@@ -100,9 +100,8 @@ jobs:
             cd ~/taskflow
 
             # Create the file directly (no cp needed)
-            cat > docker-compose.prod.yml << 'EOF'
+            cp docker-compose.prod.yml ~/taskflow/            
             # ... paste your docker-compose content here ...
-            EOF
 
             # Pass secrets to docker-compose via environment variables
             export DB_USER="${{ secrets.DB_USER }}"
