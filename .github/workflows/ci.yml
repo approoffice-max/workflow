@@ -100,7 +100,7 @@ jobs:
             cd ~/taskflow
 
             # Create the file directly (no cp needed)
-            cp docker-compose.prod.yml ~/taskflow/            
+            # cp docker-compose.prod.yml ~/taskflow/            
             # ... paste your docker-compose content here ...
 
             # Pass secrets to docker-compose via environment variables
