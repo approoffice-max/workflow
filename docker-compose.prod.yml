@@ -11,7 +11,7 @@ services:
       POSTGRES_DB: ${DB_NAME}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    # Note: In production,we usually DO NOT expose port 5432 to the public internet for security
+    # Note: In production,we usually do not expose port 5432 to the public internet for security
 
   backend:
     image: mianahsan/taskflow-backend:latest # Pulls directly from Docker Hub!
