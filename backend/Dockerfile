@@ -6,8 +6,14 @@ COPY package.json .
 
 RUN npm install
 
+# Copy Prisma schema
+COPY prisma ./prisma/
+
+# Generate Prisma client (IMPORTANT!)
+RUN npx prisma generat
+
 COPY . .
 
-EXPOSE 3000
+EXPOSE 5000
 
 CMD ["npm", "run", "dev"]
