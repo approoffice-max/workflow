@@ -1,4 +1,4 @@
-version: "3.8"
+# version: "3.8"
 
 services:
   postgres:
@@ -22,8 +22,8 @@ services:
       # - "3000:3000"
     depends_on:
       - postgres
-    env_file:
-      - .env
+    # env_file:
+    #   - .env
 
   frontend:
     image: mianahsan/taskflow-frontend:latest # Pulls directly from Docker Hub!
