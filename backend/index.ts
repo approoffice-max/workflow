@@ -30,7 +30,7 @@ app.get("/", (req, res) => {
 
 
 app.listen(3000, () => {
-    console.log("Server running on port 3000 changes made");
+    console.log("Server running on port 3000 changes made once");
 });
 
 app.get("/api/health", async (req, res) => {
