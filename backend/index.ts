@@ -29,9 +29,9 @@ app.get("/", (req, res) => {
 
 
 
-// app.listen(3000, () => {
-//     console.log("Server running on port 3000");
-// });
+app.listen(3000, () => {
+    console.log("Server running on port 3000");
+});
 
 app.get("/api/health", async (req, res) => {
     try {
