@@ -23,14 +23,14 @@ app.use(express.json());
 app.get("/", (req, res) => {
     res.json({
         success: true,
-        message: "Backend is running"
+        message: "Backend is running With"
     });
 });
 
 
 
 app.listen(3000, () => {
-    console.log("Server running on port 3000 NEW PULL REQUEST SET");
+    console.log("Server running on port 3000");
 });
 
 app.get("/api/health", async (req, res) => {
