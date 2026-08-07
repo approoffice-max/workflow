@@ -29,7 +29,7 @@ app.get("/", (req, res) => {
 
 
 app.listen(3000, () => {
-    console.log("System phar dayn gay...");
+    console.log("System phar dayn gay... smj i k ni ");
 });
 
 app.get("/api/health", async (req, res) => {
