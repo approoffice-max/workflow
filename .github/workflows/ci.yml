@@ -2,8 +2,11 @@ name: CI/CD (Continuous Integration and Deployment)
 
 on:
   push:
-    branches:
-      - main
+    # branches:
+    #   - main
+    tags:
+      - "v*"
+
   pull_request:
     branches:
       - main
@@ -38,10 +41,24 @@ jobs:
         run: npm run build
 
       - name: Build Backend Docker Image
-        run: docker build -t backend ./backend
+        # run: docker build -t backend ./backend
+        # run: docker build \
+        #   -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:latest \
+        #   ./backend
+        run: docker build \
+          -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:${{ github.ref_name }} \
+          -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:latest \
+          ./backend
 
       - name: Build Frontend Docker Image
-        run: docker build -t frontend ./frontend
+        # run: docker build -t frontend ./frontend
+        # run: docker build \
+        #   -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:latest \
+        #   ./frontend
+        run: docker build \
+          -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:${{ github.ref_name }} \
+          -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:latest \
+          ./frontend
 
   # ================= CD =================
   deploy:
@@ -68,17 +85,23 @@ jobs:
           source: "docker-compose.prod.yml"
           target: "~/taskflow/"
 
-      - name: Build Backend
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend ./backend
+      # - name: Build Backend
+      #   run: docker build -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend ./backend
 
       - name: Push Backend Docker Image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend
+        # run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend
+        run:
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:${{ github.ref_name }} \
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:latest
 
-      - name: Build Frontend
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend ./frontend
+      # - name: Build Frontend
+      #   run: docker build -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend ./frontend
 
       - name: Push Frontend Docker Image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend
+        # run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend
+        run:
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:${{ github.ref_name }} \
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:latest
 
       # UPDATED: Deploy with proper SSH configuration
       - name: Test SSH Connection
