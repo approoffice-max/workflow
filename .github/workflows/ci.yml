@@ -93,7 +93,7 @@ jobs:
       - name: Push Backend Docker Image
         # run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend
         run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:${{ github.ref_name }} \
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:${{ github.ref_name }}
           docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:latest
 
       # - name: Build Frontend
@@ -102,7 +102,7 @@ jobs:
       - name: Push Frontend Docker Image
         # run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend
         run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:${{ github.ref_name }} \
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:${{ github.ref_name }}
           docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:latest
 
       # UPDATED: Deploy with proper SSH configuration
