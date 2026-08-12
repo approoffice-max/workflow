@@ -220,8 +220,17 @@ jobs:
           -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:latest \
           ./frontend
 
-      - name: List Docker Images
-        run: docker images
+      - name: Push Backend Docker Image
+        # run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:${{ github.ref_name }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:latest
+
+      - name: Push Frontend Docker Image
+        # run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:${{ github.ref_name }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:latest
 
   # ================= CD =================
   deploy:
@@ -251,20 +260,20 @@ jobs:
       # - name: Build Backend
       #   run: docker build -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend ./backend
 
-      - name: Push Backend Docker Image
-        # run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:${{ github.ref_name }}
-          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:latest
+      # - name: Push Backend Docker Image
+      #   # run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend
+      #   run: |
+      #     docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:${{ github.ref_name }}
+      #     docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:latest
 
       # - name: Build Frontend
       #   run: docker build -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend ./frontend
 
-      - name: Push Frontend Docker Image
-        # run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:${{ github.ref_name }}
-          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:latest
+      # - name: Push Frontend Docker Image
+      #   # run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend
+      #   run: |
+      #     docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:${{ github.ref_name }}
+      #     docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:latest
 
       # UPDATED: Deploy with proper SSH configuration
       - name: Test SSH Connection
