@@ -1,9 +1,8 @@
-name: CI/CD (Continuous Integration and Deployment)
-
+name: CI (Continuous Integration) PIPELINE
 on:
-  push:
-    branches:
-      - main
+  # push:
+  #   branches:
+  #     - main
   pull_request:
     branches:
       - main
@@ -38,120 +37,69 @@ jobs:
         run: npm run build
 
       - name: Build Backend Docker Image
-        run: docker build -t backend ./backend
+        # run: docker build -t backend ./backend
+        # run: docker build \
+        #   -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:latest \
+        #   ./backend
+        # run: |
+        #   docker build \
+        #   -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:${{ github.ref_name }} \
+        #   -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:latest \
+        #   ./backend
+        run: |
+          docker build \
+            -t taskflow-backend:test \
+            ./backend
 
       - name: Build Frontend Docker Image
-        run: docker build -t frontend ./frontend
+        # run: docker build -t frontend ./frontend
+        # run: docker build \
+        #   -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:latest \
+        #   ./frontend
+        # run: |
+        #   docker build \
+        #   -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:${{ github.ref_name }} \
+        #   -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:latest \
+        #   ./frontend
+        run: |
+          docker build \
+            -t taskflow-frontend:test \
+            ./frontend
 
-  # ================= CD =================
-  deploy:
-    # runs-on: self-hosted
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - uses: actions/checkout@v4
+        # ✅ Remove Docker Hub tags from the CI build
+        # The purpose of CI is only to verify that the Dockerfile builds successfully. You don't need production image names.
+        # Why?
+        # During a Pull Request:
+        # We don't push the images.
+        # We don't deploy them.
+        # We only want to know: "Does the Docker build succeed?"
+        # Your CI pipeline now becomes
+        # Pull Request
+        #       │
+        #       ▼
+        # Checkout Code
+        #       │
+        #       ▼
+        # Install Backend
+        #       │
+        #       ▼
+        # Build Backend
+        #       │
+        #       ▼
+        # Install Frontend
+        #       │
+        #       ▼
+        # Build Frontend
+        #       │
+        #       ▼
+        # Build Backend Docker Image
+        #       │
+        #       ▼
+        # Build Frontend Docker Image
+        #       │
+        #       ▼
+        # ✅ Ready to Merge
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # Copy docker-compose.prod.yml to your Ubuntu VM
-      - name: Copy docker-compose to VM
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          port: ${{ secrets.SERVER_PORT }}
-          username: ${{ secrets.SERVER_USERNAME }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "docker-compose.prod.yml"
-          target: "~/taskflow/"
-
-      - name: Build Backend
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend ./backend
-
-      - name: Push Backend Docker Image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend
-
-      - name: Build Frontend
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend ./frontend
-
-      - name: Push Frontend Docker Image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend
-
-      # UPDATED: Deploy with proper SSH configuration
-      - name: Test SSH Connection
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          port: ${{ secrets.SERVER_PORT }} # Use the port from secrets
-          # port: 2222 # Fixed port
-          username: ${{ secrets.SERVER_USERNAME }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            echo "✅ SSH connection successful!"
-            whoami
-            pwd
-            ls -la
-
-      - name: Deploy to Production Server
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          # port: 2222 # Fixed port
-          port: ${{ secrets.SERVER_PORT }}
-          username: ${{ secrets.SERVER_USERNAME }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script_stop: true
-          script: |
-            echo "🚀 Starting deployment..."
-
-            mkdir -p ~/taskflow
-
-            # Copy docker-compose.prod.yml from the repository root
-            # The repository is at /home/runner/work/workflow/workflow
-            # cp /home/runner/work/workflow/workflow/docker-compose.prod.yml ~/taskflow/
-
-            cd ~/taskflow
-
-            # Pass secrets to docker-compose via environment variables
-            export DB_USER="${{ secrets.DB_USER }}"
-            export DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
-            export DB_NAME="${{ secrets.DB_NAME }}"
-
-            echo "📦 Pulling latest images..."
-            docker compose -f docker-compose.prod.yml pull
-
-            echo "🔄 Restarting containers..."
-            docker compose -f docker-compose.prod.yml up -d
-
-            echo "✅ Deployment complete!"
-            docker compose -f docker-compose.prod.yml ps
-          # script: |
-          #   echo "🚀 Starting deployment..."
-
-          #   # Check if taskflow directory exists, create if not
-          #   if [ ! -d "$HOME/taskflow" ]; then
-          #     echo "📁 Creating taskflow directory..."
-          #     mkdir -p $HOME/taskflow
-          #   fi
-
-          #   cd $HOME/taskflow
-
-          #   # Check if docker-compose file exists
-          #   if [ ! -f "docker-compose.prod.yml" ]; then
-          #     echo "❌ docker-compose.prod.yml not found!"
-          #     exit 1
-          #   fi
-
-          #   echo "📦 Pulling latest images..."
-          #   docker compose -f docker-compose.prod.yml pull
-
-          #   echo "🔄 Restarting containers..."
-          #   docker compose -f docker-compose.prod.yml up -d
-
-          #   echo "✅ Deployment complete!"
-
-          #   # Show running containers
-          #   docker compose -f docker-compose.prod.yml ps
+        # No Docker Hub.
+        # No SSH.
+        # No production server.

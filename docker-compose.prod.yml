@@ -14,7 +14,8 @@ services:
     # Note: In production,we usually do not expose port 5432 to the public internet for security
 
   backend:
-    image: mianahsan/taskflow-backend:latest # Pulls directly from Docker Hub!
+    # image: mianahsan/taskflow-backend:latest # Pulls directly from Docker Hub!
+    image: mianahsan/taskflow-backend:${APP_VERSION} # Pulls directly from Docker Hub!
     container_name: backend
     restart: always
     ports:
@@ -26,7 +27,8 @@ services:
     #   - .env
 
   frontend:
-    image: mianahsan/taskflow-frontend:latest # Pulls directly from Docker Hub!
+    # image: mianahsan/taskflow-frontend:latest # Pulls directly from Docker Hub!
+    image: mianahsan/taskflow-frontend:${APP_VERSION} # Pulls directly from Docker Hub!
     container_name: frontend
     restart: always
     ports:
