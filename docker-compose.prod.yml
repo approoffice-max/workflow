@@ -21,10 +21,21 @@ services:
     ports:
       - "5000:3000"
       # - "3000:3000"
+    # depends_on:
+    #   - postgres
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     # env_file:
     #   - .env
+
+    # ======== Here we are adding health check for backend ==========
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   frontend:
     # image: mianahsan/taskflow-frontend:latest # Pulls directly from Docker Hub!
@@ -36,6 +47,14 @@ services:
       # - "5173:5173"
     depends_on:
       - backend
+
+    # ======= Here we are adding health check for frontend ========
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5173"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
   postgres-data:
