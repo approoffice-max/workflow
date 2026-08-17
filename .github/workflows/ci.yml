@@ -1,4 +1,4 @@
-name: CI (Continuous Integration) PIPELINE
+name: CI (Continuous Integration)
 on:
   # push:
   #   branches:
@@ -103,3 +103,6 @@ jobs:
         # No Docker Hub.
         # No SSH.
         # No production server.
+
+        # ============== IMP STEP TO USE THIS ci.yml =============
+        # so now for just build means ci what we will do we will push code to new branch and then create manuall pull request to check the successfull build
