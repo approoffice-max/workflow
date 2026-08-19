@@ -151,11 +151,24 @@ jobs:
             APP_VERSION=${NEW_VERSION}
             EOF
 
-            # ✅ EXPORT
-            export APP_VERSION="${NEW_VERSION}"
-            export DB_USER="${DB_USER}"
-            export DB_PASSWORD="${DB_PASSWORD}"
-            export DB_NAME="${DB_NAME}"
+            # ✅ SOURCE the .env file (THIS IS THE FIX!)
+            set -a
+            source .env
+            set +a
+
+            # # ✅ CREATE .env
+            # cat > .env << EOF
+            # DB_USER=${DB_USER}
+            # DB_PASSWORD=${DB_PASSWORD}
+            # DB_NAME=${DB_NAME}
+            # APP_VERSION=${NEW_VERSION}
+            # EOF
+
+            # # ✅ EXPORT
+            # export APP_VERSION="${NEW_VERSION}"
+            # export DB_USER="${DB_USER}"
+            # export DB_PASSWORD="${DB_PASSWORD}"
+            # export DB_NAME="${DB_NAME}"
 
             echo "✅ Database environment variables received"
 
@@ -163,15 +176,19 @@ jobs:
 
             echo "📦 Pulling images for ${NEW_VERSION}..."
 
-            docker compose \
-              -f docker-compose.prod.yml \
-              pull
+            docker compose -f docker-compose.prod.yml --env-file .env pull
+
+            # docker compose \
+            #   -f docker-compose.prod.yml \
+            #   pull
 
             echo "🔄 Starting ${NEW_VERSION}..."
 
-            docker compose \
-              -f docker-compose.prod.yml \
-              up -d
+            docker compose -f docker-compose.prod.yml --env-file .env up -d
+
+            # docker compose \
+            #   -f docker-compose.prod.yml \
+            #   up -d
 
             echo "⏳ Waiting for backend health check..."
 
