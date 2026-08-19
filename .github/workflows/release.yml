@@ -257,15 +257,18 @@ jobs:
 
             echo "📦 Pulling previous version..."
 
-            docker compose \
-              -f docker-compose.prod.yml \
-              pull
+            docker compose -f docker-compose.prod.yml --env-file .env pull
+            # docker compose \
+            #   -f docker-compose.prod.yml \
+            #   pull
 
             echo "🔄 Restoring ${PREVIOUS_VERSION}..."
 
-            docker compose \
-              -f docker-compose.prod.yml \
-              up -d
+            docker compose -f docker-compose.prod.yml --env-file .env up -d
+
+            # docker compose \
+            #   -f docker-compose.prod.yml \
+            #   up -d
 
             echo "⏳ Waiting for rollback health check..."
 
