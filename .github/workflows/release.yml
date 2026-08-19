@@ -303,9 +303,11 @@ jobs:
               echo "Running version: ${PREVIOUS_VERSION}"
               echo "======================================"
 
-              docker compose \
-                -f docker-compose.prod.yml \
-                ps
+              docker compose -f docker-compose.prod.yml --env-file .env ps
+
+              # docker compose \
+              #   -f docker-compose.prod.yml \
+              #   ps
 
             else
 
