@@ -1,4 +1,4 @@
-name: CD (Continuous Deployment) || Release & Deploy
+name: CD (Continuous Deployment) || Release & Deploy PIPELINE
 on:
   push:
     tags:
