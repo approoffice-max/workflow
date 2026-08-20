@@ -228,20 +228,20 @@ jobs:
                 exit 0
             fi
 
-            ###################################################
+            # =================================
             # FAILED -> ROLLBACK
-            ###################################################
+            # =================================
 
             echo "======================================"
             echo "❌ Deployment Failed"
             echo "Starting Rollback..."
             echo "======================================"
 
-            ###################################################
-            # IMPORTANT
-            # Rewrite .env with previous version
-            ###################################################
+            # ✅ USE PREVIOUS VERSION'S DOCKER-COMPOSE FILE
+            echo "📥 Using docker-compose.prod.yml from ${PREVIOUS_VERSION}..."
+            git checkout v${PREVIOUS_VERSION} -- docker-compose.prod.yml
 
+            # ✅ Rewrite .env with previous version
             APP_VERSION="${PREVIOUS_VERSION}"
             write_env
 
@@ -269,10 +269,7 @@ jobs:
 
             docker inspect backend --format '{{.Config.Image}}'
 
-            ###################################################
-            # WAIT AGAIN
-            ###################################################
-
+            # ⏳ WAIT AGAIN
             RETRY=0
 
             while [ $RETRY -lt $MAX_RETRIES ]; do
@@ -295,10 +292,7 @@ jobs:
 
             STATUS=$(docker inspect --format='{{.State.Health.Status}}' backend)
 
-            ###################################################
-            # SUCCESSFUL ROLLBACK
-            ###################################################
-
+            # ✅ SUCCESSFUL ROLLBACK
             if [ "$STATUS" = "healthy" ]; then
 
                 echo "$PREVIOUS_VERSION" > current_version
@@ -312,13 +306,10 @@ jobs:
                   --env-file .env \
                   ps
 
-                exit 1
+                exit 1  # Rollback succeeded, but deployment failed
             fi
 
-            ###################################################
-            # ROLLBACK FAILED
-            ###################################################
-
+            # ❌ ROLLBACK FAILED
             echo "======================================"
             echo "🚨 Rollback Failed"
             echo "======================================"
@@ -334,3 +325,110 @@ jobs:
               --format '{{range .State.Health.Log}}{{println .Output}}{{end}}'
 
             exit 1
+
+            # ###################################################
+            # # FAILED -> ROLLBACK
+            # ###################################################
+
+            # echo "======================================"
+            # echo "❌ Deployment Failed"
+            # echo "Starting Rollback..."
+            # echo "======================================"
+
+            # ###################################################
+            # # IMPORTANT
+            # # Rewrite .env with previous version
+            # ###################################################
+
+            # APP_VERSION="${PREVIOUS_VERSION}"
+            # write_env
+
+            # echo "Rollback version:"
+            # cat .env
+
+            # docker compose \
+            #   -f docker-compose.prod.yml \
+            #   --env-file .env \
+            #   config | grep image
+
+            # echo "📦 Pulling previous image..."
+
+            # docker compose \
+            #   -f docker-compose.prod.yml \
+            #   --env-file .env \
+            #   pull
+
+            # echo "🔄 Restoring..."
+
+            # docker compose \
+            #   -f docker-compose.prod.yml \
+            #   --env-file .env \
+            #   up -d --force-recreate
+
+            # docker inspect backend --format '{{.Config.Image}}'
+
+            # ###################################################
+            # # WAIT AGAIN
+            # ###################################################
+
+            # RETRY=0
+
+            # while [ $RETRY -lt $MAX_RETRIES ]; do
+
+            #   STATUS=$(docker inspect \
+            #       --format='{{.State.Health.Status}}' \
+            #       backend)
+
+            #   echo "Rollback status: $STATUS"
+
+            #   if [ "$STATUS" = "healthy" ]; then
+            #       break
+            #   fi
+
+            #   RETRY=$((RETRY+1))
+
+            #   sleep 5
+
+            # done
+
+            # STATUS=$(docker inspect --format='{{.State.Health.Status}}' backend)
+
+            # ###################################################
+            # # SUCCESSFUL ROLLBACK
+            # ###################################################
+
+            # if [ "$STATUS" = "healthy" ]; then
+
+            #     echo "$PREVIOUS_VERSION" > current_version
+
+            #     echo "======================================"
+            #     echo "✅ Rollback Successful"
+            #     echo "======================================"
+
+            #     docker compose \
+            #       -f docker-compose.prod.yml \
+            #       --env-file .env \
+            #       ps
+
+            #     exit 1
+            # fi
+
+            # ###################################################
+            # # ROLLBACK FAILED
+            # ###################################################
+
+            # echo "======================================"
+            # echo "🚨 Rollback Failed"
+            # echo "======================================"
+
+            # echo "Container Image:"
+            # docker inspect backend --format '{{.Config.Image}}'
+
+            # echo "Backend Logs:"
+            # docker logs backend --tail 100
+
+            # echo "Health Logs:"
+            # docker inspect backend \
+            #   --format '{{range .State.Health.Log}}{{println .Output}}{{end}}'
+
+            # exit 1
