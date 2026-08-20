@@ -1,0 +1,621 @@
+name: CD (Continuous Deployment) || Release & Deploy PIPELINE
+on:
+  push:
+    tags:
+      - "v*"
+
+  # pull_request:
+  #   branches:
+  #     - main
+
+jobs:
+  # ================= CD =================
+  deploy:
+    # runs-on: self-hosted
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Copy docker-compose.prod.yml to your Ubuntu VM
+      - name: Copy docker-compose to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_PORT }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "docker-compose.prod.yml"
+          target: "~/taskflow/"
+
+      - name: Build Backend Docker Image
+        # run: docker build -t backend ./backend
+        # run: docker build \
+        #   -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:latest \
+        #   ./backend
+        run: |
+          docker build \
+          -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:${{ github.ref_name }} \
+          -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:latest \
+          ./backend
+
+      # - name: Build Backend
+      #   run: docker build -t ${{ secrets.DOCKER_USERNAME }}/taskflow-backend ./backend
+
+      - name: Push Backend Docker Image
+        # run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:${{ github.ref_name }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-backend:latest
+
+      # - name: Build Frontend
+      #   run: docker build -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend ./frontend
+
+      - name: Build Frontend Docker Image
+        # run: docker build -t frontend ./frontend
+        # run: docker build \
+        #   -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:latest \
+        #   ./frontend
+        run: |
+          docker build \
+          -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:${{ github.ref_name }} \
+          -t ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:latest \
+          ./frontend
+
+      - name: Push Frontend Docker Image
+        # run: docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:${{ github.ref_name }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskflow-frontend:latest
+
+      # UPDATED: Deploy with proper SSH configuration
+      - name: Test SSH Connection
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_PORT }} # Use the port from secrets
+          # port: 2222 # Fixed port
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            echo "✅ SSH connection successful!"
+            whoami
+            pwd
+            ls -la
+
+      - name: Deploy to Production Server
+        uses: appleboy/ssh-action@v1
+        env:
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          APP_VERSION: ${{ github.ref_name }}
+
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_PORT }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+
+          envs: DB_USER,DB_PASSWORD,DB_NAME,APP_VERSION
+
+          script: |
+            set -e
+
+            cd ~/taskflow
+
+            echo "======================================"
+            echo "🚀 Starting deployment"
+            echo "======================================"
+
+            NEW_VERSION="${APP_VERSION}"
+
+            echo "New version: ${NEW_VERSION}"
+
+            if [ -f current_version ]; then
+              PREVIOUS_VERSION=$(cat current_version)
+            else
+              echo "❌ current_version file does not exist!"
+              exit 1
+            fi
+
+            echo "Previous version: ${PREVIOUS_VERSION}"
+
+            echo "Checking environment..."
+
+            if [ -z "${DB_USER}" ]; then
+              echo "❌ DB_USER is missing"
+              exit 1
+            fi
+
+            if [ -z "${DB_PASSWORD}" ]; then
+              echo "❌ DB_PASSWORD is missing"
+              exit 1
+            fi
+
+            if [ -z "${DB_NAME}" ]; then
+              echo "❌ DB_NAME is missing"
+              exit 1
+            fi
+
+            # ✅ CREATE .env
+            cat > .env << EOF
+            DB_USER=${DB_USER}
+            DB_PASSWORD=${DB_PASSWORD}
+            DB_NAME=${DB_NAME}
+            APP_VERSION=${NEW_VERSION}
+            EOF
+
+            # ✅ SOURCE the .env file (THIS IS THE FIX!)
+            set -a
+            source .env
+            set +a
+
+            # # ✅ CREATE .env
+            # cat > .env << EOF
+            # DB_USER=${DB_USER}
+            # DB_PASSWORD=${DB_PASSWORD}
+            # DB_NAME=${DB_NAME}
+            # APP_VERSION=${NEW_VERSION}
+            # EOF
+
+            # # ✅ EXPORT
+            # export APP_VERSION="${NEW_VERSION}"
+            # export DB_USER="${DB_USER}"
+            # export DB_PASSWORD="${DB_PASSWORD}"
+            # export DB_NAME="${DB_NAME}"
+
+            echo "✅ Database environment variables received"
+
+            export APP_VERSION="${NEW_VERSION}"
+
+            echo "📦 Pulling images for ${NEW_VERSION}..."
+
+            docker compose -f docker-compose.prod.yml --env-file .env pull
+
+            # docker compose \
+            #   -f docker-compose.prod.yml \
+            #   pull
+
+            echo "🔄 Starting ${NEW_VERSION}..."
+
+            docker compose -f docker-compose.prod.yml --env-file .env up -d
+
+            # docker compose \
+            #   -f docker-compose.prod.yml \
+            #   up -d
+
+            echo "⏳ Waiting for backend health check..."
+
+            MAX_RETRIES=30
+            RETRY=0
+
+            while [ $RETRY -lt $MAX_RETRIES ]; do
+
+              STATUS=$(docker inspect \
+                --format='{{.State.Health.Status}}' \
+                backend 2>/dev/null || echo "missing")
+
+              echo "Backend status: ${STATUS}"
+
+              if [ "$STATUS" = "healthy" ]; then
+                echo "✅ Backend is healthy!"
+                break
+              fi
+
+              if [ "$STATUS" = "unhealthy" ]; then
+                echo "❌ Backend is unhealthy!"
+                break
+              fi
+
+              RETRY=$((RETRY + 1))
+
+              echo "⏳ Waiting... ${RETRY}/${MAX_RETRIES}"
+
+              sleep 5
+
+            done
+
+            STATUS=$(docker inspect \
+              --format='{{.State.Health.Status}}' \
+              backend 2>/dev/null || echo "missing")
+
+            echo "Final backend status: ${STATUS}"
+
+            if [ "$STATUS" = "healthy" ]; then
+
+              echo "======================================"
+              echo "✅ Deployment successful!"
+              echo "Running version: ${NEW_VERSION}"
+              echo "======================================"
+
+              echo "${NEW_VERSION}" > current_version
+
+              docker compose \
+                -f docker-compose.prod.yml \
+                ps
+
+              exit 0
+            fi
+
+            # ==================================
+            # ROLLBACK
+            # ==================================
+
+            echo "======================================"
+            echo "❌ Deployment failed!"
+            echo "🔙 Starting rollback..."
+            echo "Rollback version: ${PREVIOUS_VERSION}"
+            echo "======================================"
+
+            export APP_VERSION="${PREVIOUS_VERSION}"
+
+            echo "📦 Pulling previous version..."
+
+            docker compose -f docker-compose.prod.yml --env-file .env pull
+            # docker compose \
+            #   -f docker-compose.prod.yml \
+            #   pull
+
+            echo "🔄 Restoring ${PREVIOUS_VERSION}..."
+
+            docker compose -f docker-compose.prod.yml --env-file .env up -d
+
+            # docker compose \
+            #   -f docker-compose.prod.yml \
+            #   up -d
+
+            echo "⏳ Waiting for rollback health check..."
+
+            RETRY=0
+
+            while [ $RETRY -lt $MAX_RETRIES ]; do
+
+              STATUS=$(docker inspect \
+                --format='{{.State.Health.Status}}' \
+                backend 2>/dev/null || echo "missing")
+
+              echo "Rollback backend status: ${STATUS}"
+
+              if [ "$STATUS" = "healthy" ]; then
+                echo "✅ Rollback successful!"
+                break
+              fi
+
+              RETRY=$((RETRY + 1))
+
+              sleep 5
+
+            done
+
+            STATUS=$(docker inspect \
+              --format='{{.State.Health.Status}}' \
+              backend 2>/dev/null || echo "missing")
+
+            if [ "$STATUS" = "healthy" ]; then
+
+              echo "${PREVIOUS_VERSION}" > current_version
+
+              echo "======================================"
+              echo "✅ Rollback completed"
+              echo "Running version: ${PREVIOUS_VERSION}"
+              echo "======================================"
+
+              docker compose -f docker-compose.prod.yml --env-file .env ps
+
+              # docker compose \
+              #   -f docker-compose.prod.yml \
+              #   ps
+
+            else
+
+              echo "======================================"
+              echo "🚨 ROLLBACK FAILED!"
+              echo "Production may not be healthy!"
+              echo "======================================"
+
+              exit 1
+
+            fi
+
+            exit 1
+
+      # - name: Deploy to Production Server
+      #   uses: appleboy/ssh-action@v1
+      #   with:
+      #     host: ${{ secrets.SERVER_HOST }}
+      #     port: ${{ secrets.SERVER_PORT }}
+      #     username: ${{ secrets.SERVER_USERNAME }}
+      #     key: ${{ secrets.SERVER_SSH_KEY }}
+      #     # script_stop: true
+
+      #     script: |
+      #       set -e
+
+      #       cd ~/taskflow
+
+      #       NEW_VERSION="${{ github.ref_name }}"
+
+      #       echo "======================================"
+      #       echo "🚀 Starting deployment"
+      #       echo "New version: ${NEW_VERSION}"
+      #       echo "======================================"
+
+      #       # -----------------------------------
+      #       # Get currently deployed version
+      #       # -----------------------------------
+
+      #       if [ -f current_version ]; then
+      #         PREVIOUS_VERSION=$(cat current_version)
+      #       else
+      #         echo "❌ current_version file does not exist!"
+      #         echo "Please create it with the currently running version."
+      #         exit 1
+      #       fi
+
+      #       echo "Previous version: ${PREVIOUS_VERSION}"
+
+      #       # -----------------------------------
+      #       # Environment variables
+      #       # -----------------------------------
+
+      #       export APP_VERSION="${NEW_VERSION}"
+
+      #       export DB_USER="${{ secrets.DB_USER }}"
+      #       export DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
+      #       export DB_NAME="${{ secrets.DB_NAME }}"
+
+      #       # -----------------------------------
+      #       # Pull new version
+      #       # -----------------------------------
+
+      #       echo "📦 Pulling images for ${NEW_VERSION}..."
+
+      #       docker compose \
+      #         -f docker-compose.prod.yml \
+      #         pull
+
+      #       # -----------------------------------
+      #       # Start new version
+      #       # -----------------------------------
+
+      #       echo "🔄 Starting ${NEW_VERSION}..."
+
+      #       docker compose \
+      #         -f docker-compose.prod.yml \
+      #         up -d
+
+      #       # -----------------------------------
+      #       # Wait for health check
+      #       # -----------------------------------
+
+      #       echo "⏳ Waiting for backend health check..."
+
+      #       MAX_RETRIES=30
+      #       RETRY=0
+
+      #       while [ $RETRY -lt $MAX_RETRIES ]; do
+
+      #         STATUS=$(docker inspect \
+      #           --format='{{.State.Health.Status}}' \
+      #           backend 2>/dev/null || echo "missing")
+
+      #         echo "Backend status: ${STATUS}"
+
+      #         if [ "$STATUS" = "healthy" ]; then
+      #           echo "✅ Backend is healthy!"
+      #           break
+      #         fi
+
+      #         if [ "$STATUS" = "unhealthy" ]; then
+      #           echo "❌ Backend is unhealthy!"
+      #           break
+      #         fi
+
+      #         RETRY=$((RETRY + 1))
+
+      #         echo "⏳ Waiting... ${RETRY}/${MAX_RETRIES}"
+
+      #         sleep 5
+
+      #       done
+
+      #       # -----------------------------------
+      #       # Check final health
+      #       # -----------------------------------
+
+      #       STATUS=$(docker inspect \
+      #         --format='{{.State.Health.Status}}' \
+      #         backend 2>/dev/null || echo "missing")
+
+      #       echo "Final backend status: ${STATUS}"
+
+      #       # -----------------------------------
+      #       # SUCCESS
+      #       # -----------------------------------
+
+      #       if [ "$STATUS" = "healthy" ]; then
+
+      #         echo "======================================"
+      #         echo "✅ Deployment successful!"
+      #         echo "Running version: ${NEW_VERSION}"
+      #         echo "======================================"
+
+      #         echo "${NEW_VERSION}" > current_version
+
+      #         docker compose \
+      #           -f docker-compose.prod.yml \
+      #           ps
+
+      #         exit 0
+      #       fi
+
+      #       # -----------------------------------
+      #       # FAILURE → ROLLBACK
+      #       # -----------------------------------
+
+      #       echo "======================================"
+      #       echo "❌ Deployment failed!"
+      #       echo "🔙 Starting rollback..."
+      #       echo "Rollback version: ${PREVIOUS_VERSION}"
+      #       echo "======================================"
+
+      #       export APP_VERSION="${PREVIOUS_VERSION}"
+
+      #       echo "📦 Pulling previous version..."
+
+      #       docker compose \
+      #         -f docker-compose.prod.yml \
+      #         pull
+
+      #       echo "🔄 Restoring ${PREVIOUS_VERSION}..."
+
+      #       docker compose \
+      #         -f docker-compose.prod.yml \
+      #         up -d
+
+      #       echo "⏳ Waiting for rollback health check..."
+
+      #       RETRY=0
+
+      #       while [ $RETRY -lt $MAX_RETRIES ]; do
+
+      #         STATUS=$(docker inspect \
+      #           --format='{{.State.Health.Status}}' \
+      #           backend 2>/dev/null || echo "missing")
+
+      #         echo "Rollback backend status: ${STATUS}"
+
+      #         if [ "$STATUS" = "healthy" ]; then
+      #           echo "✅ Rollback successful!"
+      #           break
+      #         fi
+
+      #         RETRY=$((RETRY + 1))
+
+      #         sleep 5
+
+      #       done
+
+      #       STATUS=$(docker inspect \
+      #         --format='{{.State.Health.Status}}' \
+      #         backend 2>/dev/null || echo "missing")
+
+      #       if [ "$STATUS" = "healthy" ]; then
+
+      #         echo "${PREVIOUS_VERSION}" > current_version
+
+      #         echo "======================================"
+      #         echo "✅ Rollback completed"
+      #         echo "Running version: ${PREVIOUS_VERSION}"
+      #         echo "======================================"
+
+      #         docker compose \
+      #           -f docker-compose.prod.yml \
+      #           ps
+
+      #       else
+
+      #         echo "======================================"
+      #         echo "🚨 ROLLBACK FAILED!"
+      #         echo "Production may not be healthy!"
+      #         echo "======================================"
+
+      #         exit 1
+
+      #       fi
+
+      #       # Important: deployment itself failed,
+      #       # even though rollback succeeded.
+      #       exit 1
+
+      # ========= OLD START ===========
+      # - name: Deploy to Production Server
+      #   uses: appleboy/ssh-action@v1
+      #   with:
+      #     host: ${{ secrets.SERVER_HOST }}
+      #     # port: 2222 # Fixed port
+      #     port: ${{ secrets.SERVER_PORT }}
+      #     username: ${{ secrets.SERVER_USERNAME }}
+      #     key: ${{ secrets.SERVER_SSH_KEY }}
+      #     script_stop: true
+      #     script: |
+      #       echo "🚀 Starting deployment..."
+
+      #       mkdir -p ~/taskflow
+
+      #       # Copy docker-compose.prod.yml from the repository root
+      #       # The repository is at /home/runner/work/workflow/workflow
+      #       # cp /home/runner/work/workflow/workflow/docker-compose.prod.yml ~/taskflow/
+
+      #       cd ~/taskflow
+
+      #       # Pass secrets to docker-compose via environment variables
+      #       export DB_USER="${{ secrets.DB_USER }}"
+      #       export DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
+      #       export DB_NAME="${{ secrets.DB_NAME }}"
+
+      #       echo "📦 Pulling latest images..."
+      #       docker compose -f docker-compose.prod.yml pull
+
+      #       echo "🔄 Restarting containers..."
+      #       docker compose -f docker-compose.prod.yml up -d
+
+      #       echo "✅ Deployment complete!"
+      #       docker compose -f docker-compose.prod.yml ps
+      # ========= OLD END ===========
+
+      #     ✅ What you've done correctly
+      #     1. Separate CI and CD
+
+      #     Your project now has:
+
+      #     .github/workflows/
+      #     ├── ci.yml
+      #     └── release.yml
+
+      #     CI
+      #     Pull Request
+      #           │
+      #           ▼
+      #     Install
+
+      #     ↓
+
+      #     Build
+
+      #     ↓
+
+      #     Docker Build
+
+      #     ↓
+
+      #     Done
+
+      #     CD
+      #       Tag
+
+      #       ↓
+
+      #       Build Images
+
+      #       ↓
+
+      #       Push Images
+
+      #       ↓
+
+      #       Deploy
+
+      # 2. Deployment only happens on releases
+      # on:
+      #   push:
+      #     tags:
+      #       - "v*"
+      # Perfect.
+      # That means production changes only when you intentionally create a release.
