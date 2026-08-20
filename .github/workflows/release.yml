@@ -237,9 +237,14 @@ jobs:
             echo "Starting Rollback..."
             echo "======================================"
 
-            # ✅ USE PREVIOUS VERSION'S DOCKER-COMPOSE FILE
-            echo "📥 Using docker-compose.prod.yml from ${PREVIOUS_VERSION}..."
-            git checkout v${PREVIOUS_VERSION} -- docker-compose.prod.yml
+            # ✅ Download the previous version's docker-compose.prod.yml
+            echo "📥 Downloading docker-compose.prod.yml from ${PREVIOUS_VERSION}..."
+            if curl -o docker-compose.prod.yml \
+              "https://raw.githubusercontent.com/approoffice-max/workflow/${PREVIOUS_VERSION}/docker-compose.prod.yml" 2>/dev/null; then
+              echo "✅ Downloaded successfully"
+            else
+              echo "❌ Failed to download. Using existing file."
+            fi
 
             # ✅ Rewrite .env with previous version
             APP_VERSION="${PREVIOUS_VERSION}"
@@ -268,6 +273,43 @@ jobs:
               up -d --force-recreate
 
             docker inspect backend --format '{{.Config.Image}}'
+
+            # echo "======================================"
+            # echo "❌ Deployment Failed"
+            # echo "Starting Rollback..."
+            # echo "======================================"
+
+            # # ✅ USE PREVIOUS VERSION'S DOCKER-COMPOSE FILE
+            # echo "📥 Using docker-compose.prod.yml from ${PREVIOUS_VERSION}..."
+            # git checkout v${PREVIOUS_VERSION} -- docker-compose.prod.yml
+
+            # # ✅ Rewrite .env with previous version
+            # APP_VERSION="${PREVIOUS_VERSION}"
+            # write_env
+
+            # echo "Rollback version:"
+            # cat .env
+
+            # docker compose \
+            #   -f docker-compose.prod.yml \
+            #   --env-file .env \
+            #   config | grep image
+
+            # echo "📦 Pulling previous image..."
+
+            # docker compose \
+            #   -f docker-compose.prod.yml \
+            #   --env-file .env \
+            #   pull
+
+            # echo "🔄 Restoring..."
+
+            # docker compose \
+            #   -f docker-compose.prod.yml \
+            #   --env-file .env \
+            #   up -d --force-recreate
+
+            # docker inspect backend --format '{{.Config.Image}}'
 
             # ⏳ WAIT AGAIN
             RETRY=0
